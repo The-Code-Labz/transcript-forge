@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express'
 import multer from 'multer'
 import { v4 as uuid } from 'uuid'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, unlink } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { config } from './config.js'
 import * as storage from './storage.js'
@@ -37,7 +37,7 @@ apiRouter.post(
       queue.createJob(jobId, originalName)
       queue.setJobStatus(jobId, 'uploading', 'Uploading video', 2)
       await storage.uploadFile(req.file.path, videoKey)
-      await storage.deleteFile(req.file.path).catch(() => {})
+      unlink(req.file.path, () => {})
       queue.updateJob(jobId, { videoKey })
       queue.setJobStatus(jobId, 'pending', 'Queued for processing', 5)
 
