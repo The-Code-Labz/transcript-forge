@@ -86,6 +86,46 @@ apiRouter.post('/jobs/:id/cancel', requireApiKey, async (req, res) => {
   res.json({ ok: true })
 })
 
+apiRouter.delete('/jobs/:id', requireApiKey, async (req, res) => {
+  try {
+    const jobId = req.params.id
+    const job = queue.getJob(jobId)
+    if (job && !['completed', 'failed', 'cancelled'].includes(job.status)) {
+      await queue.cancelJob(jobId)
+    }
+    await queue.removeJob(jobId)
+    await storage.deleteJobFiles(jobId)
+    res.json({ ok: true })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || String(err) })
+  }
+})
+
+// Local-storage-only maintenance endpoints: the job list above is backed by an
+// in-memory Map that does not survive a process restart, so on 'local' storage
+// a restart leaves prior job folders on disk with no way to see or delete them
+// through the normal job list. These let that leftover data be found and reclaimed.
+apiRouter.get('/storage/jobs', requireApiKey, async (req, res) => {
+  try {
+    const dirs = await storage.listLocalJobDirs()
+    const known = new Set(queue.listJobs().map(j => j.id))
+    res.json(dirs.map(d => ({ ...d, tracked: known.has(d.jobId) })))
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || String(err) })
+  }
+})
+
+apiRouter.delete('/storage/jobs/:jobId', requireApiKey, async (req, res) => {
+  try {
+    const jobId = req.params.jobId
+    await queue.removeJob(jobId)
+    await storage.deleteJobFiles(jobId)
+    res.json({ ok: true })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || String(err) })
+  }
+})
+
 apiRouter.get('/files/:jobId/:name', async (req, res) => {
   try {
     const key = storage.keyPath(req.params.jobId, req.params.name)

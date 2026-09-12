@@ -3,7 +3,7 @@ import { ProgressBar } from './ProgressBar'
 import { API_URL, API_KEY } from '../config'
 import type { TranscriptJob } from '../types'
 
-export function JobDetail({ job }: { job: TranscriptJob | null }) {
+export function JobDetail({ job, onDelete }: { job: TranscriptJob | null; onDelete: (id: string) => void }) {
   if (!job) {
     return (
       <div className="flex h-full min-h-[300px] items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-zinc-500">
@@ -26,14 +26,26 @@ export function JobDetail({ job }: { job: TranscriptJob | null }) {
           <h2 className="text-lg font-semibold">{job.originalName}</h2>
           <p className="mt-1 text-xs text-zinc-500">ID: {job.id}</p>
         </div>
-        {!['completed', 'failed', 'cancelled'].includes(job.status) && (
+        <div className="flex items-center gap-2">
+          {!['completed', 'failed', 'cancelled'].includes(job.status) && (
+            <button
+              onClick={cancelJob}
+              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-medium hover:bg-zinc-800"
+            >
+              Cancel
+            </button>
+          )}
           <button
-            onClick={cancelJob}
-            className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-medium hover:bg-zinc-800"
+            onClick={() => {
+              if (confirm(`Delete "${job.originalName}" and its files? This cannot be undone.`)) {
+                onDelete(job.id)
+              }
+            }}
+            className="rounded-lg border border-rose-900/50 px-3 py-1.5 text-xs font-medium text-rose-300 hover:bg-rose-950/50"
           >
-            Cancel
+            Delete
           </button>
-        )}
+        </div>
       </div>
 
       <div className="mb-6">
