@@ -13,6 +13,12 @@ export interface TranscribeAudioResult {
   words?: Array<{ word: string; start: number; end: number }>
 }
 
+// Only whisper-1 supports verbose_json + word-level timestamp_granularities on the
+// OpenAI (and VoidAI-proxied) transcription API. gpt-4o-transcribe / gpt-4o-mini-transcribe
+// only accept response_format 'json' or 'text' and reject timestamp_granularities outright -
+// requesting it gets a blanket "upstream provider rejected the request" 400 from VoidAI.
+const SUPPORTS_WORD_TIMESTAMPS = /^whisper/i.test(config.transcribeModel)
+
 export async function transcribeAudio(
   audioPath: string,
   language?: string,
@@ -20,8 +26,9 @@ export async function transcribeAudio(
   const resp = await openai.audio.transcriptions.create({
     file: createReadStream(audioPath) as any,
     model: config.transcribeModel,
-    response_format: 'verbose_json',
-    timestamp_granularities: ['word'],
+    ...(SUPPORTS_WORD_TIMESTAMPS
+      ? { response_format: 'verbose_json', timestamp_granularities: ['word'] }
+      : { response_format: 'json' }),
     language,
   } as any)
 
