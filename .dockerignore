@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+dist/
+**/dist/
+*.tsbuildinfo
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Data
+data/
+**/data/
+*.log
+logs/
+
+# VCS / editor
+.git/
+.gitignore
+.github/
+.vscode/
+.idea/
+.DS_Store
+
+# Docs
+README.md
