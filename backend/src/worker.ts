@@ -2,6 +2,7 @@ import ffmpeg from 'fluent-ffmpeg'
 import ffmpegStatic from 'ffmpeg-static'
 import ffprobeStatic from 'ffprobe-static'
 import { mkdir, writeFile, unlink, rm } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { Worker } from 'bullmq'
 import { config } from './config.js'
@@ -80,8 +81,16 @@ async function processJob(jobId: string): Promise<void> {
     queue.setJobStatus(jobId, 'uploading', 'Downloading video', 3)
     await broadcastProgress(jobId)
 
-    const videoBuf = await storage.downloadFile(job.videoKey!)
-    await writeFile(videoLocalPath, videoBuf)
+    // For local storage, the upload route already placed the file at
+    // videoLocalPath (same key scheme, same volume) — buffering the whole
+    // thing through downloadFile()/writeFile() again was a second full
+    // in-memory copy of the entire video, on top of the one in the upload
+    // route. That's what made large (multi-hundred-MB+) uploads look "stuck":
+    // two full-file Buffer round-trips before processing even starts.
+    if (!existsSync(videoLocalPath)) {
+      const videoBuf = await storage.downloadFile(job.videoKey!)
+      await writeFile(videoLocalPath, videoBuf)
+    }
 
     queue.setJobStatus(jobId, 'extracting_audio', 'Extracting audio', 10)
     await broadcastProgress(jobId)

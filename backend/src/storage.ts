@@ -1,7 +1,8 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3'
-import { mkdir, writeFile, readFile, unlink, rm, readdir, stat } from 'node:fs/promises'
+import { mkdir, writeFile, readFile, unlink, rm, readdir, stat, rename } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { createReadStream } from 'node:fs'
+import { createReadStream, createWriteStream } from 'node:fs'
+import { pipeline } from 'node:stream/promises'
 import { dirname, join, resolve } from 'node:path'
 import { config } from './config.js'
 
@@ -24,9 +25,20 @@ export function keyPath(jobId: string, name: string) {
 export async function uploadFile(localPath: string, key: string): Promise<void> {
   if (config.storageBackend === 'local') {
     const dest = join(resolve(config.localDataDir), key)
+    // Large files (multi-hundred-MB video) previously got fully buffered into
+    // memory here via readFile/writeFile, which is slow and can OOM the
+    // process. Move/stream instead, and skip entirely if the source is
+    // already the destination (common for local storage where multer's temp
+    // upload path and job chunk paths often resolve to the same file).
+    if (resolve(localPath) === dest) return
     await mkdir(dirname(dest), { recursive: true })
-    const buf = await readFile(localPath)
-    await writeFile(dest, buf)
+    try {
+      await rename(localPath, dest)
+    } catch (err: any) {
+      if (err.code !== 'EXDEV') throw err
+      await pipeline(createReadStream(localPath), createWriteStream(dest))
+      await unlink(localPath).catch(() => {})
+    }
     return
   }
   if (!s3Client) throw new Error('S3 client not initialized')
