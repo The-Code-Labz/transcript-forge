@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { UploadForm } from './components/UploadForm'
 import { JobList } from './components/JobList'
 import { JobDetail } from './components/JobDetail'
+import { StoragePanel } from './components/StoragePanel'
 import { API_URL, API_KEY } from './config'
 import type { TranscriptJob } from './types'
 
@@ -21,6 +22,15 @@ function App() {
     return () => clearInterval(iv)
   }, [])
 
+  const deleteJob = async (id: string) => {
+    await fetch(`${API_URL}/jobs/${id}`, {
+      method: 'DELETE',
+      headers: { 'x-api-key': API_KEY },
+    })
+    if (selectedId === id) setSelectedId(null)
+    fetchJobs()
+  }
+
   const selectedJob = jobs.find((j) => j.id === selectedId) || null
 
   return (
@@ -34,10 +44,11 @@ function App() {
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-1">
             <UploadForm onUpload={fetchJobs} />
-            <JobList jobs={jobs} selectedId={selectedId} onSelect={setSelectedId} />
+            <JobList jobs={jobs} selectedId={selectedId} onSelect={setSelectedId} onDelete={deleteJob} />
+            <StoragePanel />
           </div>
           <div className="lg:col-span-2">
-            <JobDetail job={selectedJob} />
+            <JobDetail job={selectedJob} onDelete={deleteJob} />
           </div>
         </div>
       </main>

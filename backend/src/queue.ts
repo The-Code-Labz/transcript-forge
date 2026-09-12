@@ -56,6 +56,17 @@ export async function addTranscriptionJob(jobId: string): Promise<Job> {
   return transcriptionQueue.add('transcribe', { jobId }, { jobId })
 }
 
+export async function removeJob(jobId: string): Promise<void> {
+  const bullJobs = await transcriptionQueue.getJobs(['waiting', 'active', 'delayed', 'completed', 'failed'])
+  const target = bullJobs.find(j => j.data.jobId === jobId)
+  if (target) {
+    try {
+      await target.remove()
+    } catch {}
+  }
+  jobStore.delete(jobId)
+}
+
 export async function cancelJob(jobId: string): Promise<boolean> {
   const bullJobs = await transcriptionQueue.getJobs(['waiting', 'active', 'delayed'])
   const target = bullJobs.find(j => j.data.jobId === jobId)

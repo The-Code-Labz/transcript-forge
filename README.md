@@ -71,6 +71,9 @@ Backend runs on http://localhost:4050, frontend on http://localhost:5173.
 | GET | `/api/files/:jobId/transcript.srt` | Download SRT subtitles |
 | GET | `/api/files/:jobId/transcript.vtt` | Download VTT subtitles |
 | GET | `/api/files/:jobId/transcript.json` | Download JSON with word timestamps |
+| DELETE | `/api/jobs/:id` | Cancel (if running) and permanently delete a job's files |
+| GET | `/api/storage/jobs` | (local storage only) List job folders on disk, including ones no longer tracked in memory |
+| DELETE | `/api/storage/jobs/:jobId` | (local storage only) Delete a job folder by ID, tracked or not |
 
 All API endpoints except `/api/health` require the header `x-api-key: $TRANSCRIPT_FORGE_API_KEY`.
 
@@ -82,4 +85,5 @@ See `.env.example` for all options.
 
 - Redis is required for the background job queue.
 - A 2-hour video will typically be split into ~12 chunks; each chunk is transcribed in parallel up to worker concurrency.
-- Output files are kept in storage until deleted manually.
+- Output files are kept in storage until deleted manually — use the Delete button in the UI (or `DELETE /api/jobs/:id`) to remove a job and its files.
+- The job list is in-memory only and does not survive a backend restart. On the `local` storage backend this can orphan old job folders on disk; the UI's "Orphaned files" panel (backed by `GET/DELETE /api/storage/jobs`) surfaces and reclaims these.
