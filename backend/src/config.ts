@@ -7,7 +7,7 @@ export const config = {
   corsOrigin: process.env.CORS_ORIGIN || '*',
 
   // VoidAI / OpenAI-compatible
-  voidaiBaseUrl: process.env.VOIDAI_BASE_URL || 'https://api.voidai.gg/v1',
+  voidaiBaseUrl: process.env.VOIDAI_BASE_URL || 'https://api.voidai.app/v1',
   voidaiApiKey: process.env.VOIDAI_API_KEY || '',
   transcribeModel: process.env.TRANSCRIBE_MODEL || 'gpt-4o-transcribe',
   chunkMinutes: Number(process.env.CHUNK_MINUTES || 10),
