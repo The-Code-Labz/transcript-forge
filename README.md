@@ -63,7 +63,11 @@ Backend runs on http://localhost:4050, frontend on http://localhost:5173.
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/health` | Health check |
-| POST | `/api/jobs` | Upload video or audio (multipart/form-data, field `video`) |
+| POST | `/api/jobs` | Upload video or audio directly (multipart/form-data, field `video`). Used by the UI for files ≤20MB |
+| POST | `/api/uploads/init` | Start a chunked upload session: `{ originalName, fileSize }` → `{ uploadId, chunkSize, totalChunks }` |
+| POST | `/api/uploads/:uploadId/chunk/:index` | Upload one chunk (multipart/form-data, field `chunk`) |
+| POST | `/api/uploads/:uploadId/complete` | Assemble all received chunks and create the job (same response shape as `POST /api/jobs`) |
+| DELETE | `/api/uploads/:uploadId` | Abort a chunked upload session and discard any chunks received so far |
 | GET | `/api/jobs` | List all jobs |
 | GET | `/api/jobs/:id` | Get job status |
 | POST | `/api/jobs/:id/cancel` | Cancel a job |
@@ -87,3 +91,4 @@ See `.env.example` for all options.
 - A 2-hour video will typically be split into ~12 chunks; each chunk is transcribed in parallel up to worker concurrency.
 - Output files are kept in storage until deleted manually — use the Delete button in the UI (or `DELETE /api/jobs/:id`) to remove a job and its files.
 - The job list is in-memory only and does not survive a backend restart. On the `local` storage backend this can orphan old job folders on disk; the UI's "Orphaned files" panel (backed by `GET/DELETE /api/storage/jobs`) surfaces and reclaims these.
+- The UI automatically chunk-uploads files larger than 20MB (20MB chunks, `/api/uploads/*`), so large videos aren't blocked by edge-proxy request-body limits (e.g. Cloudflare caps single requests at 100MB on Free/Pro plans). Files at/under 20MB still use the simpler direct `POST /api/jobs` upload.
