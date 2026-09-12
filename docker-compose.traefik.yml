@@ -1,0 +1,28 @@
+# Optional Traefik reverse-proxy overlay.
+# Standalone `docker compose up` still works without this file or Traefik running.
+#
+# Usage:
+#   1. Ensure the external network exists once: `docker network create traefik-public`
+#   2. Set DOMAIN and CERT_RESOLVER in .env (see .env.example)
+#   3. docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d
+#
+# Requires a Traefik instance already attached to the `traefik-public` network,
+# with entrypoints named `web` and `websecure` and a certresolver configured.
+
+services:
+  api:
+    networks:
+      - default
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.transcript-forge.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.transcript-forge.entrypoints=web,websecure"
+      - "traefik.http.routers.transcript-forge.tls=true"
+      - "traefik.http.routers.transcript-forge.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
+      - "traefik.http.services.transcript-forge.loadbalancer.server.port=4050"
+
+networks:
+  traefik-public:
+    external: true

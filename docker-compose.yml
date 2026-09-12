@@ -1,11 +1,14 @@
-version: "3.8"
-
 services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
     volumes:
       - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   api:
     build:
@@ -22,7 +25,8 @@ services:
     volumes:
       - ./data:/app/data
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
 
 volumes:
   redis-data:
