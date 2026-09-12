@@ -32,6 +32,23 @@ docker compose up -d
 
 Open http://localhost:4050.
 
+## Optional: Traefik reverse proxy
+
+`docker-compose.traefik.yml` is an override that adds Traefik routing labels to
+the `api` service. It's opt-in — plain `docker compose up` still runs standalone,
+no Traefik required.
+
+```bash
+# one-time: create the shared external network if it doesn't exist
+docker network create traefik-public
+
+# set DOMAIN (and optionally CERT_RESOLVER) in .env, then:
+docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d
+```
+
+Requires a Traefik instance already attached to `traefik-public` with
+`web`/`websecure` entrypoints and a certresolver configured.
+
 ## Local development
 
 ```bash
