@@ -1,6 +1,7 @@
 import ffmpeg from 'fluent-ffmpeg'
 import ffmpegStatic from 'ffmpeg-static'
-import { mkdir, writeFile, unlink, readdir } from 'node:fs/promises'
+import ffprobeStatic from 'ffprobe-static'
+import { mkdir, writeFile, unlink, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Worker } from 'bullmq'
 import { config } from './config.js'
@@ -12,6 +13,9 @@ import type { TranscriptChunk, TranscriptResult } from './types.js'
 import { broadcastProgress } from './websocket.js'
 
 ffmpeg.setFfmpegPath((ffmpegStatic as unknown as string) || 'ffmpeg')
+// Without this, fluent-ffmpeg falls back to spawning a bare `ffprobe` off PATH,
+// which is absent unless the host/container happens to have it installed system-wide.
+ffmpeg.setFfprobePath(ffprobeStatic?.path || 'ffprobe')
 
 async function getDuration(mediaPath: string): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -158,13 +162,17 @@ async function processJob(jobId: string): Promise<void> {
     await broadcastProgress(jobId)
     throw err
   } finally {
-    try {
-      const files = await readdir(localDir).catch(() => [])
-      for (const f of files) {
-        if (['transcript.md', 'transcript.srt', 'transcript.vtt', 'transcript.json'].includes(f)) continue
-        await unlink(join(localDir, f)).catch(() => {})
-      }
-    } catch {}
+    // Only clean up scratch artifacts produced during processing (extracted audio,
+    // chunk files). Never delete `videoLocalPath` when storageBackend is 'local' -
+    // that path IS the canonical, only copy of the upload. Deleting it here (as the
+    // old blanket readdir/unlink loop did) meant any failed attempt permanently
+    // destroyed the source media, so BullMQ's automatic retry would then fail with
+    // ENOENT trying to re-download a file that no longer existed anywhere.
+    await unlink(audioLocalPath).catch(() => {})
+    await rm(chunkDir, { recursive: true, force: true }).catch(() => {})
+    if (config.storageBackend !== 'local') {
+      await unlink(videoLocalPath).catch(() => {})
+    }
   }
 }
 
