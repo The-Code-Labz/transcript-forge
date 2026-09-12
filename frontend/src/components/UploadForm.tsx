@@ -5,23 +5,31 @@ import { API_URL, API_KEY } from '../config'
 export function UploadForm({ onUpload }: { onUpload: () => void }) {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!file) return
     setUploading(true)
+    setError(null)
     const form = new FormData()
     form.append('video', file)
     try {
-      await fetch(`${API_URL}/jobs`, {
+      const res = await fetch(`${API_URL}/jobs`, {
         method: 'POST',
         headers: { 'x-api-key': API_KEY },
         body: form,
       })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `Upload failed (${res.status})`)
+      }
       setFile(null)
       if (inputRef.current) inputRef.current.value = ''
       onUpload()
+    } catch (err: any) {
+      setError(err.message || 'Upload failed')
     } finally {
       setUploading(false)
     }
@@ -29,14 +37,15 @@ export function UploadForm({ onUpload }: { onUpload: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-      <h2 className="mb-3 font-semibold">Upload Video</h2>
+      <h2 className="mb-3 font-semibold">Upload Video or Audio</h2>
       <input
         ref={inputRef}
         type="file"
-        accept="video/*"
+        accept="video/*,audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.oga,.opus,.wma"
         onChange={(e) => setFile(e.target.files?.[0] || null)}
         className="block w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-zinc-800 file:px-3 file:py-1 file:text-zinc-100"
       />
+      {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
       <button
         type="submit"
         disabled={!file || uploading}

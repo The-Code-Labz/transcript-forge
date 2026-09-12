@@ -1,10 +1,10 @@
 # TranscriptForge
 
-Self-hosted async video transcription web app powered by the VoidAI API.
+Self-hosted async video/audio transcription web app powered by the VoidAI API.
 
 ## What it does
 
-- Upload long videos (1–2+ hours)
+- Upload long videos or audio files (1–2+ hours) — mp4, mov, mkv, avi, webm, mp3, wav, m4a, aac, flac, ogg, opus, wma
 - ffmpeg extracts audio and splits it into 10-minute chunks
 - Chunks are transcribed in parallel via VoidAI (`gpt-4o-transcribe`)
 - Results are stitched back together with timestamps
@@ -63,7 +63,7 @@ Backend runs on http://localhost:4050, frontend on http://localhost:5173.
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/health` | Health check |
-| POST | `/api/jobs` | Upload video (multipart/form-data, field `video`) |
+| POST | `/api/jobs` | Upload video or audio (multipart/form-data, field `video`) |
 | GET | `/api/jobs` | List all jobs |
 | GET | `/api/jobs/:id` | Get job status |
 | POST | `/api/jobs/:id/cancel` | Cancel a job |

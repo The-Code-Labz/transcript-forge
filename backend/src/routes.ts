@@ -8,7 +8,21 @@ import * as storage from './storage.js'
 import * as queue from './queue.js'
 import { downloadFile } from './storage.js'
 
-const upload = multer({ dest: 'data/uploads/', limits: { fileSize: config.maxFileSizeBytes } })
+const ALLOWED_EXTENSIONS = new Set([
+  '.mp4', '.mov', '.mkv', '.avi', '.webm', '.flv', '.wmv', '.m4v',
+  '.mp3', '.wav', '.m4a', '.aac', '.flac', '.ogg', '.oga', '.opus', '.wma',
+])
+
+const upload = multer({
+  dest: 'data/uploads/',
+  limits: { fileSize: config.maxFileSizeBytes },
+  fileFilter: (req, file, cb) => {
+    const ext = file.originalname.includes('.') ? '.' + file.originalname.split('.').pop()!.toLowerCase() : ''
+    const isAllowedMime = file.mimetype.startsWith('video/') || file.mimetype.startsWith('audio/')
+    if (isAllowedMime || ALLOWED_EXTENSIONS.has(ext)) return cb(null, true)
+    cb(new Error(`Unsupported file type: ${file.mimetype || ext}`))
+  },
+})
 mkdirSync(resolve('data/uploads'), { recursive: true })
 
 function requireApiKey(req: Request, res: Response, next: () => void) {
@@ -23,13 +37,20 @@ apiRouter.get('/health', (req, res) => {
   res.json({ status: 'ok', voidaiConfigured: !!config.voidaiApiKey, storage: config.storageBackend })
 })
 
+function handleUpload(req: Request, res: Response, next: (err?: any) => void) {
+  upload.single('video')(req, res, (err: any) => {
+    if (err) return res.status(400).json({ error: err.message || 'Upload failed' })
+    next()
+  })
+}
+
 apiRouter.post(
   '/jobs',
   requireApiKey,
-  upload.single('video'),
+  handleUpload,
   async (req: Request, res: Response) => {
     try {
-      if (!req.file) return res.status(400).json({ error: 'No video file provided' })
+      if (!req.file) return res.status(400).json({ error: 'No video or audio file provided' })
       const jobId = uuid()
       const originalName = req.file.originalname
       const videoKey = storage.keyPath(jobId, `input${originalName.replace(/.*(?=\.)/, '')}`)
