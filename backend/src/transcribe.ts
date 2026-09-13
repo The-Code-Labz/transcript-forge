@@ -1,4 +1,5 @@
 import { createReadStream } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import OpenAI from 'openai'
 import { config } from './config.js'
 import type { TranscriptChunk } from './types.js'
@@ -19,10 +20,7 @@ export interface TranscribeAudioResult {
 // requesting it gets a blanket "upstream provider rejected the request" 400 from VoidAI.
 const SUPPORTS_WORD_TIMESTAMPS = /^whisper/i.test(config.transcribeModel)
 
-export async function transcribeAudio(
-  audioPath: string,
-  language?: string,
-): Promise<TranscribeAudioResult> {
+async function transcribeWithVoidAI(audioPath: string, language?: string): Promise<TranscribeAudioResult> {
   const resp = await openai.audio.transcriptions.create({
     file: createReadStream(audioPath) as any,
     model: config.transcribeModel,
@@ -40,6 +38,57 @@ export async function transcribeAudio(
   }))
 
   return { text, words }
+}
+
+// All audio chunks produced by worker.ts's ffmpeg pipeline are always mp3
+// (audioCodec libmp3lame / format mp3), so the Content-Type is fixed here.
+async function transcribeWithDeepgram(audioPath: string, language?: string): Promise<TranscribeAudioResult> {
+  if (!config.deepgramApiKey) {
+    throw new Error('DEEPGRAM_API_KEY is not set but TRANSCRIBE_PROVIDER=deepgram')
+  }
+
+  const audio = await readFile(audioPath)
+  const params = new URLSearchParams({
+    model: config.deepgramModel,
+    smart_format: 'true',
+    punctuate: 'true',
+    ...(language ? { language } : {}),
+  })
+
+  const resp = await fetch(`https://api.deepgram.com/v1/listen?${params.toString()}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Token ${config.deepgramApiKey}`,
+      'Content-Type': 'audio/mpeg',
+    },
+    body: audio,
+  })
+
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => '')
+    throw new Error(`Deepgram request failed (${resp.status} ${resp.statusText}): ${body}`)
+  }
+
+  const data: any = await resp.json()
+  const alt = data?.results?.channels?.[0]?.alternatives?.[0]
+  const text = alt?.transcript || ''
+  const words = (alt?.words || []).map((w: any) => ({
+    word: w.punctuated_word || w.word,
+    start: w.start,
+    end: w.end,
+  }))
+
+  return { text, words }
+}
+
+export async function transcribeAudio(
+  audioPath: string,
+  language?: string,
+): Promise<TranscribeAudioResult> {
+  if (config.transcribeProvider === 'deepgram') {
+    return transcribeWithDeepgram(audioPath, language)
+  }
+  return transcribeWithVoidAI(audioPath, language)
 }
 
 export function buildChunksFromWords(

@@ -1,12 +1,13 @@
 # TranscriptForge
 
-Self-hosted async video/audio transcription web app powered by the VoidAI API.
+Self-hosted async video/audio transcription web app powered by VoidAI or Deepgram.
 
 ## What it does
 
 - Upload long videos or audio files (1–2+ hours) — mp4, mov, mkv, avi, webm, mp3, wav, m4a, aac, flac, ogg, opus, wma
 - ffmpeg extracts audio and splits it into 10-minute chunks
-- Chunks are transcribed in parallel via VoidAI (`gpt-4o-transcribe`)
+- Chunks are transcribed in parallel via VoidAI (`gpt-4o-transcribe`) or Deepgram (`nova-2`) — see `TRANSCRIBE_PROVIDER` below
+- Each chunk is retried automatically (3 attempts, backoff) on transient network/connection errors before failing the job
 - Results are stitched back together with timestamps
 - Download as `.md`, `.srt`, `.vtt`, or `.json`
 - Live progress via WebSocket
@@ -17,7 +18,7 @@ Self-hosted async video/audio transcription web app powered by the VoidAI API.
 - **Backend:** Node.js + Express + TypeScript
 - **Queue:** BullMQ + Redis
 - **Media:** ffmpeg
-- **Transcription:** VoidAI (OpenAI-compatible API)
+- **Transcription:** VoidAI (OpenAI-compatible API) or Deepgram — switch with `TRANSCRIBE_PROVIDER`
 - **Storage:** Local filesystem or MinIO/S3
 
 ## Quick start
@@ -26,9 +27,17 @@ Self-hosted async video/audio transcription web app powered by the VoidAI API.
 git clone https://github.com/The-Code-Labz/transcript-forge.git
 cd transcript-forge
 cp .env.example .env
-# Edit .env with your VOIDAI_API_KEY and TRANSCRIPT_FORGE_API_KEY
+# Edit .env: set TRANSCRIBE_PROVIDER (voidai|deepgram) and the matching API key
+# (VOIDAI_API_KEY or DEEPGRAM_API_KEY), plus TRANSCRIPT_FORGE_API_KEY
 docker compose up -d
 ```
+
+### Transcription provider
+
+Set `TRANSCRIBE_PROVIDER=deepgram` and `DEEPGRAM_API_KEY` to use Deepgram's `nova-2` model
+instead of VoidAI. Deepgram returns word-level timestamps natively for every model, so
+there's no `whisper-1`-vs-`gpt-4o-transcribe` format landmine like there is on the VoidAI
+path. Default remains `voidai` for backwards compatibility.
 
 Open http://localhost:4050.
 
