@@ -6,10 +6,18 @@ export const config = {
   apiKey: process.env.TRANSCRIPT_FORGE_API_KEY || 'dev-key',
   corsOrigin: process.env.CORS_ORIGIN || '*',
 
+  // Transcription provider: voidai (OpenAI-compatible) | deepgram
+  transcribeProvider: (process.env.TRANSCRIBE_PROVIDER || 'voidai') as 'voidai' | 'deepgram',
+
   // VoidAI / OpenAI-compatible
   voidaiBaseUrl: process.env.VOIDAI_BASE_URL || 'https://api.voidai.app/v1',
   voidaiApiKey: process.env.VOIDAI_API_KEY || '',
   transcribeModel: process.env.TRANSCRIBE_MODEL || 'gpt-4o-transcribe',
+
+  // Deepgram
+  deepgramApiKey: process.env.DEEPGRAM_API_KEY || '',
+  deepgramModel: process.env.DEEPGRAM_MODEL || 'nova-2',
+
   chunkMinutes: Number(process.env.CHUNK_MINUTES || 10),
   maxFileSizeBytes: Number(process.env.MAX_FILE_SIZE_BYTES || 5 * 1024 * 1024 * 1024), // 5GB
 

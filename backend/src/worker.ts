@@ -12,6 +12,7 @@ import { transcribeAudio, buildChunksFromWords, textToChunks } from './transcrib
 import { generateMarkdown, generateSrt, generateVtt, generateJson } from './utils.js'
 import type { TranscriptChunk, TranscriptResult } from './types.js'
 import { broadcastProgress } from './websocket.js'
+import { withRetry } from './retry.js'
 
 ffmpeg.setFfmpegPath((ffmpegStatic as unknown as string) || 'ffmpeg')
 // Without this, fluent-ffmpeg falls back to spawning a bare `ffprobe` off PATH,
@@ -119,7 +120,23 @@ async function processJob(jobId: string): Promise<void> {
       queue.setJobStatus(jobId, 'transcribing', `Transcribing chunk ${i + 1}/${chunks.length}`, progress)
       await broadcastProgress(jobId)
 
-      const result = await transcribeAudio(c.path)
+      // A single transient network/DNS blip on chunk N used to throw straight out of the
+      // whole job, which BullMQ then retried from scratch - re-running ffmpeg extraction
+      // and re-transcribing every chunk that had already succeeded. Retry each chunk
+      // individually (provider-agnostic) before letting a failure propagate.
+      const result = await withRetry(() => transcribeAudio(c.path), {
+        attempts: 3,
+        baseDelayMs: 2000,
+        onRetry: (err, attempt) => {
+          queue.setJobStatus(
+            jobId,
+            'transcribing',
+            `Retrying chunk ${i + 1}/${chunks.length} (attempt ${attempt + 1}/3): ${(err as any)?.message || err}`,
+            progress,
+          )
+          broadcastProgress(jobId).catch(() => {})
+        },
+      })
       if (result.words?.length) {
         const built = buildChunksFromWords(result.words, c.start)
         allChunks.push(...built)
