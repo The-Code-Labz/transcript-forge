@@ -282,7 +282,7 @@ apiRouter.get('/files/:jobId/:name', async (req, res) => {
     const key = storage.keyPath(req.params.jobId, req.params.name)
     const buf = await downloadFile(key)
     const ext = req.params.name.split('.').pop()
-    const ctype = ext === 'md' ? 'text/markdown' : ext === 'srt' ? 'text/srt' : ext === 'vtt' ? 'text/vtt' : ext === 'json' ? 'application/json' : 'application/octet-stream'
+    const ctype = ext === 'md' ? 'text/markdown' : ext === 'txt' ? 'text/plain' : ext === 'srt' ? 'text/srt' : ext === 'vtt' ? 'text/vtt' : ext === 'json' ? 'application/json' : 'application/octet-stream'
     res.setHeader('Content-Type', ctype)
     res.setHeader('Content-Disposition', `attachment; filename="${req.params.name}"`)
     res.send(buf)

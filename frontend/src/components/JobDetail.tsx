@@ -1,7 +1,96 @@
-import { FileText, Subtitles, Braces } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { FileText, FileType, Subtitles, Braces, Clock, AlignLeft } from 'lucide-react'
 import { ProgressBar } from './ProgressBar'
 import { API_URL, API_KEY } from '../config'
 import type { TranscriptJob } from '../types'
+
+interface TranscriptChunk {
+  index: number
+  startSec: number
+  endSec: number
+  text: string
+}
+
+function formatTimestamp(seconds: number): string {
+  const hrs = Math.floor(seconds / 3600)
+  const mins = Math.floor((seconds % 3600) / 60)
+  const secs = Math.floor(seconds % 60)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return hrs > 0 ? `${pad(hrs)}:${pad(mins)}:${pad(secs)}` : `${pad(mins)}:${pad(secs)}`
+}
+
+function TranscriptViewer({ job }: { job: TranscriptJob }) {
+  const [chunks, setChunks] = useState<TranscriptChunk[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [showTimestamps, setShowTimestamps] = useState(true)
+
+  useEffect(() => {
+    if (!job.outputs?.json) return
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    fetch(`${API_URL}/files/${job.id}/transcript.json`)
+      .then(res => {
+        if (!res.ok) throw new Error(`Failed to load transcript (${res.status})`)
+        return res.json()
+      })
+      .then(data => {
+        if (!cancelled) setChunks(data.chunks || [])
+      })
+      .catch(err => {
+        if (!cancelled) setError(err.message || 'Failed to load transcript')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [job.id, job.outputs?.json])
+
+  if (!job.outputs?.json) return null
+
+  return (
+    <div className="mb-6">
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="font-medium">Transcript</h3>
+        <button
+          onClick={() => setShowTimestamps(v => !v)}
+          className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1 text-xs font-medium hover:bg-zinc-800"
+        >
+          {showTimestamps ? <AlignLeft className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
+          {showTimestamps ? 'Hide timestamps' : 'Show timestamps'}
+        </button>
+      </div>
+      <div className="max-h-96 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-950 p-4 text-sm leading-relaxed text-zinc-200">
+        {loading && <p className="text-zinc-500">Loading transcript…</p>}
+        {error && <p className="text-rose-300">{error}</p>}
+        {!loading && !error && chunks && chunks.length === 0 && (
+          <p className="text-zinc-500">No transcript text available.</p>
+        )}
+        {!loading && !error && chunks && chunks.length > 0 && (
+          showTimestamps ? (
+            <div className="space-y-2">
+              {chunks
+                .filter(c => c.text.trim())
+                .map(c => (
+                  <p key={c.index}>
+                    <span className="mr-2 font-mono text-xs text-violet-400">[{formatTimestamp(c.startSec)}]</span>
+                    {c.text.trim()}
+                  </p>
+                ))}
+            </div>
+          ) : (
+            <p className="whitespace-pre-wrap">
+              {chunks.map(c => c.text.trim()).filter(Boolean).join(' ')}
+            </p>
+          )
+        )}
+      </div>
+    </div>
+  )
+}
 
 export function JobDetail({ job, onDelete }: { job: TranscriptJob | null; onDelete: (id: string) => void }) {
   if (!job) {
@@ -75,6 +164,8 @@ export function JobDetail({ job, onDelete }: { job: TranscriptJob | null; onDele
         </div>
       )}
 
+      <TranscriptViewer job={job} />
+
       {job.outputs && (
         <div className="space-y-2">
           <h3 className="mb-2 font-medium">Downloads</h3>
@@ -84,7 +175,16 @@ export function JobDetail({ job, onDelete }: { job: TranscriptJob | null; onDele
               download
               className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2 text-sm hover:border-zinc-700"
             >
-              <FileText className="h-4 w-4" /> Markdown
+              <FileText className="h-4 w-4" /> Markdown (with timestamps)
+            </a>
+          )}
+          {job.outputs.txt && (
+            <a
+              href={`/api/files/${job.id}/transcript.txt`}
+              download
+              className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2 text-sm hover:border-zinc-700"
+            >
+              <FileType className="h-4 w-4" /> Text (no timestamps)
             </a>
           )}
           {job.outputs.srt && (

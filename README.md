@@ -9,7 +9,8 @@ Self-hosted async video/audio transcription web app powered by VoidAI or Deepgra
 - Chunks are transcribed in parallel via VoidAI (`gpt-4o-transcribe`) or Deepgram (`nova-2`) — see `TRANSCRIBE_PROVIDER` below
 - Each chunk is retried automatically (3 attempts, backoff) on transient network/connection errors before failing the job
 - Results are stitched back together with timestamps
-- Download as `.md`, `.srt`, `.vtt`, or `.json`
+- View the finished transcript directly in the UI, with a toggle to show/hide timestamps
+- Download as `.md` (timestamped), `.txt` (plain, no timestamps), `.srt`, `.vtt`, or `.json`
 - Live progress via WebSocket
 
 ## Stack
@@ -80,7 +81,8 @@ Backend runs on http://localhost:4050, frontend on http://localhost:5173.
 | GET | `/api/jobs` | List all jobs |
 | GET | `/api/jobs/:id` | Get job status |
 | POST | `/api/jobs/:id/cancel` | Cancel a job |
-| GET | `/api/files/:jobId/transcript.md` | Download Markdown transcript |
+| GET | `/api/files/:jobId/transcript.md` | Download Markdown transcript, with per-line timestamps |
+| GET | `/api/files/:jobId/transcript.txt` | Download plain-text transcript, no timestamps |
 | GET | `/api/files/:jobId/transcript.srt` | Download SRT subtitles |
 | GET | `/api/files/:jobId/transcript.vtt` | Download VTT subtitles |
 | GET | `/api/files/:jobId/transcript.json` | Download JSON with word timestamps |
