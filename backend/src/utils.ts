@@ -52,3 +52,12 @@ export function generateMarkdown(chunks: TranscriptChunk[], title: string): stri
 export function generateJson(chunks: TranscriptChunk[], metadata: object): string {
   return JSON.stringify({ chunks, ...metadata }, null, 2)
 }
+
+// Plain reading text with no per-line timestamps — companion to generateMarkdown's
+// timestamped version, for users who just want the words.
+export function generatePlainText(chunks: TranscriptChunk[]): string {
+  return chunks
+    .map(c => c.text.trim())
+    .filter(Boolean)
+    .join(' ')
+}

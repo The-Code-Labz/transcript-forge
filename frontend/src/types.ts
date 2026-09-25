@@ -22,6 +22,7 @@ export interface TranscriptJob {
   completedAt?: string
   outputs?: {
     md?: string
+    txt?: string
     srt?: string
     vtt?: string
     json?: string

@@ -9,7 +9,7 @@ import { config } from './config.js'
 import * as storage from './storage.js'
 import * as queue from './queue.js'
 import { transcribeAudio, buildChunksFromWords, textToChunks } from './transcribe.js'
-import { generateMarkdown, generateSrt, generateVtt, generateJson } from './utils.js'
+import { generateMarkdown, generatePlainText, generateSrt, generateVtt, generateJson } from './utils.js'
 import type { TranscriptChunk, TranscriptResult } from './types.js'
 import { broadcastProgress } from './websocket.js'
 import { withRetry } from './retry.js'
@@ -154,17 +154,20 @@ async function processJob(jobId: string): Promise<void> {
     await broadcastProgress(jobId)
 
     const md = generateMarkdown(allChunks, job.originalName)
+    const txt = generatePlainText(allChunks)
     const srt = generateSrt(allChunks)
     const vtt = generateVtt(allChunks)
     const json = generateJson(allChunks, { duration, model: config.transcribeModel, originalName: job.originalName })
 
     const mdKey = storage.keyPath(jobId, 'transcript.md')
+    const txtKey = storage.keyPath(jobId, 'transcript.txt')
     const srtKey = storage.keyPath(jobId, 'transcript.srt')
     const vttKey = storage.keyPath(jobId, 'transcript.vtt')
     const jsonKey = storage.keyPath(jobId, 'transcript.json')
 
     await Promise.all([
       storage.uploadBuffer(Buffer.from(md, 'utf8'), mdKey),
+      storage.uploadBuffer(Buffer.from(txt, 'utf8'), txtKey),
       storage.uploadBuffer(Buffer.from(srt, 'utf8'), srtKey),
       storage.uploadBuffer(Buffer.from(vtt, 'utf8'), vttKey),
       storage.uploadBuffer(Buffer.from(json, 'utf8'), jsonKey),
@@ -173,6 +176,7 @@ async function processJob(jobId: string): Promise<void> {
     queue.updateJob(jobId, {
       outputs: {
         md: storage.publicUrl(mdKey),
+        txt: storage.publicUrl(txtKey),
         srt: storage.publicUrl(srtKey),
         vtt: storage.publicUrl(vttKey),
         json: storage.publicUrl(jsonKey),

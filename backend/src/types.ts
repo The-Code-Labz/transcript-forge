@@ -25,6 +25,7 @@ export interface TranscriptJob {
   chunkKeys?: string[]
   outputs?: {
     md?: string
+    txt?: string
     srt?: string
     vtt?: string
     json?: string
